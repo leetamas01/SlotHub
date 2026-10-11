@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace IdopontfoglaloWebalk.Controllers
 {
@@ -12,11 +16,13 @@ namespace IdopontfoglaloWebalk.Controllers
     {
         private readonly EfContext _context;
         private readonly UserManager<Users> _userManager;
+        private readonly IEmailSenderService _emailSender;
 
-        public ServicesController(EfContext context, UserManager<Users> userManager)
+        public ServicesController(EfContext context, UserManager<Users> userManager, IEmailSenderService emailSender)
         {
             _context = context;
             _userManager = userManager;
+            _emailSender = emailSender;
         }
 
         // GET: Services/MyServices
@@ -301,8 +307,6 @@ namespace IdopontfoglaloWebalk.Controllers
             return RedirectToAction(nameof(MyServices));
         }
 
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddCategoryServices(int serviceId, string categoryName)
@@ -323,12 +327,12 @@ namespace IdopontfoglaloWebalk.Controllers
         }
 
         [HttpPost]
-        [Authorize] //Csak bejelentkezett felhasználó foglalhat!
+        [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> BookOccasion(int occasionId)
         {
-            //Ellenőrizzük,hogy be van-e jelentkezve
-            if (!User.Identity.IsAuthenticated)
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
             {
                 return Json(new
                 {
@@ -338,30 +342,60 @@ namespace IdopontfoglaloWebalk.Controllers
                 });
             }
 
-            var currentUserId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(currentUserId))
-            {
-                return Json(new { success = false, message = "A foglaláshoz be kell jelentkezned!" });
-            }
+            var occasion = await _context.Occasions
+                .Include(o => o.ServiceCategory)
+                    .ThenInclude(sc => sc.Service)
+                .FirstOrDefaultAsync(o => o.reservation_id == occasionId);
 
-            var occasion = await _context.Occasions.FindAsync(occasionId);
             if (occasion == null)
             {
                 return Json(new { success = false, message = "A kiválasztott időpont nem található!" });
             }
 
-            //Ütközésvédelem
             if (occasion.status == "reserved" || !string.IsNullOrEmpty(occasion.user_id))
             {
                 return Json(new { success = false, message = "Ezt az időpontot időközben már lefoglalták!" });
             }
 
-            //Lefoglalás rögzítése
-            occasion.user_id = currentUserId;
+            // Időpont rögzítése
+            occasion.user_id = currentUser.Id;
             occasion.reservation_date = DateTime.Now;
             occasion.status = "reserved";
 
             await _context.SaveChangesAsync();
+
+            var serviceName = occasion.ServiceCategory?.Service?.name ?? "Szolgáltatás";
+            var serviceAddress = occasion.ServiceCategory?.Service?.address ?? "Cím nem elérhető";
+            var categoryName = occasion.ServiceCategory?.Name ?? "Általános";
+
+            if (!string.IsNullOrEmpty(currentUser.Email))
+            {
+                try
+                {
+                    var subject = $"Sikeres foglalás - {serviceName}";
+                    var body = $@"
+                        <div style=""font-family: Arial, sans-serif; line-height: 1.6; color: #333;"">
+                            <h2 style=""color: #0d6efd;"">Kedves {currentUser.UserName}!</h2>
+                            <p>Köszönjük a foglalásodat! Az időpontodat sikeresen rögzítettük rendszerünkben.</p>
+                            
+                            <div style=""background-color: #f8f9fa; border-left: 4px solid #0d6efd; padding: 15px; margin: 20px 0;"">
+                                <p style=""margin: 5px 0;""><strong>Szolgáltatás:</strong> {serviceName}</p>
+                                <p style=""margin: 5px 0;""><strong>Kategória:</strong> {categoryName}</p>
+                                <p style=""margin: 5px 0;""><strong>Időpont:</strong> {occasion.date:yyyy. MM. dd. HH:mm}</p>
+                                <p style=""margin: 5px 0;""><strong>Helyszín:</strong> {serviceAddress}</p>
+                            </div>
+
+                            <p>Ha bármi közbejönne, a foglalást a profilodban a <em>Foglalásaim</em> menüpont alatt bármikor lemondhatod.</p>
+                            <p>Üdvözlettel,<br />Az Időpontfoglaló Csapata</p>
+                        </div>";
+
+                    await _emailSender.SendEmailAsync(currentUser.Email, subject, body);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Sikertelen email küldés: {ex.Message}");
+                }
+            }
 
             return Json(new { success = true, message = "Időpont sikeresen lefoglalva!" });
         }

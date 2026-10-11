@@ -54,6 +54,8 @@ namespace IdopontfoglaloWebalk
                 options.Cookie.IsEssential = true;
             });
 
+            builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
+
             var app = builder.Build();
 
             if (!app.Environment.IsDevelopment())

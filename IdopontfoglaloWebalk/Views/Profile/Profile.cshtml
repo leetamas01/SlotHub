@@ -3,6 +3,7 @@
 @{
     ViewData["Title"] = "Profil";
     bool isAdmin = User.IsInRole("Admin") || Model.User.UserName == "admin";
+    var existingFeedbacks = ViewBag.Feedbacks as List<IdopontfoglaloWebalk.Models.Feedbacks> ?? new List<IdopontfoglaloWebalk.Models.Feedbacks>();
 }
 
 <div class="container py-5" style="max-width: 960px;">
@@ -88,7 +89,7 @@
             {
                 <div class="card border-0 shadow-sm rounded-4 p-5 text-center bg-light">
                     <i class="bi bi-calendar-x fs-1 text-muted mb-3 d-block"></i>
-                    <h5 class="fw-bold text-dark">Nincsenek aktív foglalásaid</h5>
+                    <h5 class="fw-bold text-dark">Nincsenek foglalásaid</h5>
                     <p class="text-muted small mb-3">Még nem választottál időpontot egyetlen szolgáltatóhoz sem.</p>
                     <a asp-controller="Home" asp-action="Index" class="btn btn-primary rounded-pill px-4 align-self-center">
                         Szolgáltatások keresése
@@ -100,34 +101,139 @@
                 <div class="d-flex flex-column gap-3">
                     @foreach (var reservation in Model.Reservations)
                     {
+                        var feedback = existingFeedbacks.FirstOrDefault(f => f.reservation_Id == reservation.reservation_id);
+                        bool isPast = reservation.date < DateTime.Now;
+                        var sName = reservation.ServiceCategory?.Service?.name ?? reservation.Service?.name ?? "Szolgáltatás";
+                        var sAddr = reservation.ServiceCategory?.Service?.address ?? reservation.Service?.address ?? "Cím nem elérhető";
+                        var cName = reservation.ServiceCategory?.Name ?? "Általános";
+                        var dateText = reservation.date.ToString("yyyy. MM. dd. HH:mm");
+
                         <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
                             <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                                 <div>
-                                    <h6 class="fw-bold mb-1 text-dark">@(reservation.Service?.name ?? "Szolgáltatás")</h6>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <h6 class="fw-bold mb-0 text-dark">@sName</h6>
+                                        @if (isPast)
+                                        {
+                                            <span class="badge bg-secondary rounded-pill small">Lezajlott</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success rounded-pill small">Közelgő</span>
+                                        }
+                                    </div>
                                     <p class="text-muted small mb-1">
-                                        <i class="bi bi-tag-fill text-primary me-1"></i> @(reservation.ServiceCategory?.Name ?? "Általános")
+                                        <i class="bi bi-tag-fill text-primary me-1"></i> @cName
                                     </p>
                                     <p class="text-muted small mb-1">
-                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> @(reservation.Service?.address ?? "Cím nem elérhető")
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> @sAddr
                                     </p>
                                     <span class="badge bg-light text-dark border rounded-pill px-3 py-1">
-                                        <i class="bi bi-clock me-1 text-primary"></i> @reservation.date.ToString("yyyy. MM. dd. HH:mm")
+                                        <i class="bi bi-clock me-1 text-primary"></i> @dateText
                                     </span>
                                 </div>
-                                <div>
-                                    <form asp-controller="Profile" asp-action="CancelReservation" method="post" onsubmit="return confirm('Biztosan le szeretnéd mondani ezt a foglalást?');">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="reservationId" value="@reservation.reservation_id" />
-                                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">
+
+                                <div class="d-flex align-items-center gap-2">
+                                    @if (!isPast)
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3"
+                                                onclick="openCancelReservationModal(@reservation.reservation_id, '@sName', '@dateText')">
                                             <i class="bi bi-x-circle me-1"></i> Lemondás
                                         </button>
-                                    </form>
+                                    }
+                                    else
+                                    {
+                                        @if (feedback != null && feedback.rating_guest > 0)
+                                        {
+                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">
+                                                <i class="bi bi-star-fill text-dark me-1"></i> Értékelve: @feedback.rating_guest.ToString("0.0") / 5
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#feedbackModal_@reservation.reservation_id">
+                                                <i class="bi bi-star-fill me-1"></i> Értékelés
+                                            </button>
+
+                                            <div class="modal fade" id="feedbackModal_@reservation.reservation_id" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-dialog-centered">
+                                                    <div class="modal-content border-0 shadow rounded-4">
+                                                        <div class="modal-header border-0 pb-0">
+                                                            <h5 class="modal-title fw-bold">Szolgáltatás értékelése</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <form asp-controller="Profile" asp-action="SubmitFeedback" method="post">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="reservationId" value="@reservation.reservation_id" />
+                                                            <div class="modal-body py-3">
+                                                                <p class="small text-muted mb-3">
+                                                                    <strong>@sName</strong>
+                                                                </p>
+
+                                                                <div class="mb-3">
+                                                                    <label class="form-label small fw-bold text-muted">Értékelés (1-5)</label>
+                                                                    <select name="rating" class="form-select rounded-3" required>
+                                                                        <option value="5" selected>5 - Kiváló</option>
+                                                                        <option value="4">4 - Nagyon jó</option>
+                                                                        <option value="3">3 - Megfelelő</option>
+                                                                        <option value="2">2 - Gyenge</option>
+                                                                        <option value="1">1 - Elégedetlen</option>
+                                                                    </select>
+                                                                </div>
+
+                                                                <div class="mb-3">
+                                                                    <label class="form-label small fw-bold text-muted">Szöveges vélemény (opcionális)</label>
+                                                                    <textarea name="comment" rows="3" class="form-control rounded-3" placeholder="Oszd meg a tapasztalataidat a szolgáltatásról..."></textarea>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer border-0 pt-0">
+                                                                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Mégsem</button>
+                                                                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">Értékelés beküldése</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
                                 </div>
                             </div>
                         </div>
                     }
                 </div>
             }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="cancelReservationModal" tabindex="-1" aria-labelledby="cancelReservationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="cancelReservationModalLabel">Foglalás lemondása</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <form asp-controller="Profile" asp-action="CancelReservation" method="post" id="cancelReservationForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="reservationId" id="modalCancelReservationId" value="" />
+                <div class="modal-body py-4">
+                    <p class="text-muted mb-2">Biztosan le szeretnéd mondani a következő foglalásodat?</p>
+                    <div class="bg-light p-3 rounded-3 border">
+                        <h6 class="fw-bold mb-1 text-dark" id="modalCancelServiceName"></h6>
+                        <span class="badge bg-white text-danger border rounded-pill px-3 py-1">
+                            <i class="bi bi-clock me-1"></i> <span id="modalCancelDateText"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Mégsem</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold" id="btnConfirmCancelModal">
+                        <span class="spinner-border spinner-border-sm d-none me-1" id="cancelSpinner" role="status" aria-hidden="true"></span>
+                        Igen, lemondom
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -222,3 +328,35 @@
         </div>
     </div>
 }
+
+<script>
+    var cancelReservationModalInstance;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var modalEl = document.getElementById('cancelReservationModal');
+        if (modalEl) {
+            cancelReservationModalInstance = new bootstrap.Modal(modalEl);
+        }
+
+        var formEl = document.getElementById('cancelReservationForm');
+        if (formEl) {
+            formEl.addEventListener('submit', function () {
+                var btn = document.getElementById('btnConfirmCancelModal');
+                var spinner = document.getElementById('cancelSpinner');
+                if (btn && spinner) {
+                    btn.disabled = true;
+                    spinner.classList.remove('d-none');
+                }
+            });
+        }
+    });
+
+    function openCancelReservationModal(reservationId, serviceName, dateText) {
+        document.getElementById('modalCancelReservationId').value = reservationId;
+        document.getElementById('modalCancelServiceName').innerText = serviceName;
+        document.getElementById('modalCancelDateText').innerText = dateText;
+        if (cancelReservationModalInstance) {
+            cancelReservationModalInstance.show();
+        }
+    }
+</script>

@@ -5,7 +5,6 @@
 }
 
 @Html.AntiForgeryToken()
-
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 
 <div class="container py-5">
@@ -38,13 +37,73 @@
     </div>
 </div>
 
+<div class="modal fade" id="bookingConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Foglalás megerősítése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body py-4" id="confirmModalBody">
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Mégsem</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4 fw-bold" id="btnConfirmBooking">
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="bookingSpinner" role="status" aria-hidden="true"></span>
+                    Igen, lefoglalom
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bookingAlertModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 text-center p-3">
+            <div class="modal-body py-4">
+                <div id="alertModalIcon" class="mb-3"></div>
+                <h5 class="fw-bold mb-2" id="alertModalTitle"></h5>
+                <p class="text-muted mb-0" id="alertModalMessage"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0">
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal" id="alertModalOkBtn">Rendben</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');
 
-        //Kiolvassuk az Antiforgery tokent a lapról
         var tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
         var token = tokenInput ? tokenInput.value : '';
+
+        var confirmModal = new bootstrap.Modal(document.getElementById('bookingConfirmModal'));
+        var alertModal = new bootstrap.Modal(document.getElementById('bookingAlertModal'));
+        var selectedOccasionId = null;
+
+        function showAlert(title, message, isSuccess = true, redirectUrl = null) {
+            document.getElementById('alertModalTitle').innerText = title;
+            document.getElementById('alertModalMessage').innerText = message;
+
+            var iconEl = document.getElementById('alertModalIcon');
+            if (isSuccess) {
+                iconEl.innerHTML = '<i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>';
+            } else {
+                iconEl.innerHTML = '<i class="bi bi-exclamation-circle-fill text-danger" style="font-size: 3rem;"></i>';
+            }
+
+            var okBtn = document.getElementById('alertModalOkBtn');
+            okBtn.onclick = function() {
+                alertModal.hide();
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                }
+            };
+
+            alertModal.show();
+        }
 
         var calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGridWeek',
@@ -73,19 +132,14 @@
                 var status = info.event.extendedProps.status;
 
                 if (status === 'reserved') {
-                    alert('Ez az időpont sajnos már foglalt!');
+                    showAlert('Foglalt időpont', 'Ez az időpont sajnos már foglalt!', false);
                     return;
                 }
 
-                //Ellenőrizzük a bejelentkezési állapotot
-
-                var isAuthenticated = @(User.Identity.IsAuthenticated.ToString().ToLower());
+                var isAuthenticated = @(User.Identity?.IsAuthenticated == true ? "true" : "false");
 
                 if (!isAuthenticated) {
-                    if (confirm('Az időpont lefoglalásához be kell jelentkezned. Szeretnél most átlépni a bejelentkezéshez?')) {
-                        //Átirányítás a Login felületre
-                        window.location.href = '/Users/Login';
-                    }
+                    showAlert('Bejelentkezés szükséges', 'Az időpont lefoglalásához be kell jelentkezned!', false, '/Users/Login');
                     return;
                 }
 
@@ -97,33 +151,59 @@
                     minute: '2-digit'
                 }) : '';
 
-                if (confirm('Biztosan le szeretnéd foglalni ezt az időpontot?\n\n' + info.event.title + '\nIdőpont: ' + dateStr)) {
-                    var formData = new FormData();
-                    formData.append('occasionId', info.event.id);
+                selectedOccasionId = info.event.id;
 
-                    fetch('/Services/BookOccasion', {
-                        method: 'POST',
-                        headers: {
-                            'RequestVerificationToken': token
-                        },
-                        body: formData
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data && data.success) {
-                                alert(data.message);
-                                calendar.refetchEvents();
-                            } else if (data && data.requireLogin) {
-                                window.location.href = '/Users/Login';
-                            } else {
-                                alert('Hiba: ' + (data ? data.message : 'Ismeretlen hiba'));
-                            }
-                        })
-                        .catch(err => {
-                            console.error('Hiba a foglalás során:', err);
-                        });
-                }
+                document.getElementById('confirmModalBody').innerHTML = `
+                    <p class="mb-1 text-muted">Biztosan le szeretnéd foglalni az alábbi időpontot?</p>
+                    <h6 class="fw-bold text-dark mt-2 mb-2">${info.event.title}</h6>
+                    <span class="badge bg-light text-primary border rounded-pill px-3 py-2">
+                        <i class="bi bi-clock me-1"></i> ${dateStr}
+                    </span>
+                `;
+
+                confirmModal.show();
             }
+        });
+
+        document.getElementById('btnConfirmBooking').addEventListener('click', function() {
+            var btn = this;
+            var spinner = document.getElementById('bookingSpinner');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+
+            var formData = new FormData();
+            formData.append('occasionId', selectedOccasionId);
+
+            fetch('/Services/BookOccasion', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                confirmModal.hide();
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+
+                if (data && data.success) {
+                    showAlert('Sikeres foglalás!', data.message, true);
+                    calendar.refetchEvents();
+                } else if (data && data.requireLogin) {
+                    showAlert('Bejelentkezés szükséges', data.message, false, '/Users/Login');
+                } else {
+                    showAlert('Hiba történt', data ? data.message : 'Ismeretlen hiba.', false);
+                }
+            })
+            .catch(err => {
+                confirmModal.hide();
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                console.error('Hiba a foglalás során:', err);
+                showAlert('Hálózati hiba', 'Nem sikerült kommunikálni a szerverrel.', false);
+            });
         });
 
         calendar.render();
