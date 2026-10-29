@@ -8,6 +8,7 @@ namespace IdopontfoglaloWebalk.Models
     public interface IEmailSenderService
     {
         Task SendEmailAsync(string toEmail, string subject, string body);
+        Task SendEmailWithAttachmentAsync(string toEmail, string subject, string message, Attachment attachment);
     }
 
     public class EmailSenderService : IEmailSenderService
@@ -19,28 +20,38 @@ namespace IdopontfoglaloWebalk.Models
             _config = config;
         }
 
-        public async Task SendEmailAsync(string toEmail, string subject, string body)
+        public Task SendEmailAsync(string toEmail, string subject, string message)
         {
-            var host = _config["SmtpSettings:Server"];
+            return SendEmailWithAttachmentAsync(toEmail, subject, message, null);
+        }
+        public async Task SendEmailWithAttachmentAsync(string toEmail, string subject, string message, Attachment attachment)
+        {
+            var server = _config["SmtpSettings:Server"];
             var port = int.Parse(_config["SmtpSettings:Port"] ?? "587");
-            var senderEmail = _config["SmtpSettings:SenderEmail"];
             var senderName = _config["SmtpSettings:SenderName"];
+            var senderEmail = _config["SmtpSettings:SenderEmail"];
             var password = _config["SmtpSettings:Password"];
 
-            using var client = new SmtpClient(host, port)
+            using var client = new SmtpClient(server, port)
             {
                 Credentials = new NetworkCredential(senderEmail, password),
                 EnableSsl = true
             };
 
-            var mailMessage = new MailMessage
+            using var mailMessage = new MailMessage
             {
-                From = new MailAddress(senderEmail!, senderName),
+                From = new MailAddress(senderEmail, senderName),
                 Subject = subject,
-                Body = body,
+                Body = message,
                 IsBodyHtml = true
             };
+
             mailMessage.To.Add(toEmail);
+
+            if (attachment != null)
+            {
+                mailMessage.Attachments.Add(attachment);
+            }
 
             await client.SendMailAsync(mailMessage);
         }

@@ -14,26 +14,26 @@
     </div>
 
     <div class="mb-4">
-        <h1 class="fw-bold text-dark">@Model.name <span class="fs-4 text-muted">- Naptár</span></h1>
+        <h1 class="fw-bold text-dark">@Model.name <span class="fs-4 text-muted">Naptár</span></h1>
         <p class="text-muted"><i class="bi bi-geo-alt-fill me-1"></i> @Model.address</p>
     </div>
 
-    <form asp-action="AddCategoryServices" method="post" class="d-flex gap-2 mt-2">
+    <form asp-action="AddCategoryServices" method="post" class="d-flex gap-2 mt-2 mb-4" style="max-width: 500px;">
         @Html.AntiForgeryToken()
         <input type="hidden" name="serviceId" value="@Model.service_id" />
         <input type="text" name="categoryName" class="form-control form-control-sm rounded-3" placeholder="Új alkategória neve (pl. Hajvágás)" required />
-        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Hozzáadás</button>
+        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3 text-nowrap">Hozzáadás</button>
     </form>
 
     <div class="row g-4">
         <div class="col-lg-3">
             <div class="card shadow-sm border-0 rounded-4 p-4 bg-light mb-3">
-                <h4 class="fw-bold mb-3">Kezelőpanel</h4>
-                <p class="small text-muted">Kattints a naptár egy tetszőleges idősávjára új szabad időpont meghirdetéséhez.</p>
+                <h5 class="fw-bold mb-3">Kezelőpanel</h5>
+                <p class="small text-muted">Generálj automatikusan új szabad idősávokat a vendégeid számára az alábbi gombbal.</p>
 
                 <hr />
 
-                <div class="d-flex flex-column gap-2">
+                <div class="d-grid gap-2">
                     <button class="btn btn-success rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#generateSlotsModal">
                         <i class="bi bi-magic me-1"></i> Idősávok generálása
                     </button>
@@ -41,13 +41,13 @@
             </div>
 
             <div class="card shadow-sm border-0 rounded-4 p-3 bg-white">
-                <h6 class="fw-bold mb-2">Jelmagyarázat</h6>
-                <div class="d-flex align-items-center mb-1">
-                    <span class="badge bg-success me-2" style="width: 20px; height: 12px; display: inline-block;"> </span>
+                <h6 class="fw-bold mb-3">Jelmagyarázat</h6>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge bg-success me-2 rounded-circle p-2 d-inline-block"> </span>
                     <span class="small text-muted">Szabad időpont</span>
                 </div>
                 <div class="d-flex align-items-center">
-                    <span class="badge bg-danger me-2" style="width: 20px; height: 12px; display: inline-block;"> </span>
+                    <span class="badge bg-danger me-2 rounded-circle p-2 d-inline-block"> </span>
                     <span class="small text-muted">Lefoglalt alkalom</span>
                 </div>
             </div>
@@ -60,14 +60,31 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="slotDetailsModal" tabindex="-1" aria-labelledby="slotDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4 text-center p-3">
+            <div class="modal-body py-4">
+                <div id="slotModalIcon" class="mb-3"></div>
+                <h5 class="fw-bold mb-1" id="slotModalTitle"></h5>
+                <span class="badge rounded-pill px-3 py-2 my-2" id="slotModalBadge"></span>
+                <p class="text-muted small mb-0 mt-2" id="slotModalDate"></p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center pt-0">
+                <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Rendben</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="generateSlotsModal" tabindex="-1" aria-labelledby="generateSlotsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow rounded-4">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold" id="generateSlotsModalLabel">Idősávok generálása</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
             </div>
-            <form asp-controller="Services" asp-action="GenerateSlots" method="post">
+            <form asp-controller="Services" asp-action="GenerateSlots" method="post" id="generateSlotsForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="serviceId" value="@Model.service_id" />
 
@@ -76,7 +93,7 @@
                     {
                         <div class="alert alert-warning rounded-3 small">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                            Ehhez a szolgáltatáshoz még nem hoztál létre alkategóriát (pl. Férfi hajvágás, Női hajvágás). Előbb vegyél fel egy alkategóriát!
+                            Ehhez a szolgáltatáshoz még nem hoztál létre alkategóriát. Előbb vegyél fel egyet a fenti mezőben!
                         </div>
                     }
                     else
@@ -135,7 +152,8 @@
 
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Mégsem</button>
-                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold" @(Model.ServiceCategories == null || !Model.ServiceCategories.Any() ? "disabled" : "")>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold" id="btnSubmitGenerate" @(Model.ServiceCategories == null || !Model.ServiceCategories.Any() ? "disabled" : "")>
+                        <span class="spinner-border spinner-border-sm d-none me-1" id="generateSpinner" role="status" aria-hidden="true"></span>
                         Generálás
                     </button>
                 </div>
@@ -145,11 +163,24 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         var calendarEl = document.getElementById('calendar');
+        var slotModal = new bootstrap.Modal(document.getElementById('slotDetailsModal'));
+
+        var generateForm = document.getElementById('generateSlotsForm');
+        if (generateForm) {
+            generateForm.addEventListener('submit', function () {
+                var btn = document.getElementById('btnSubmitGenerate');
+                var spinner = document.getElementById('generateSpinner');
+                if (btn && spinner) {
+                    btn.disabled = true;
+                    spinner.classList.remove('d-none');
+                }
+            });
+        }
 
         var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'timeGridWeek', // Heti, idősávos nézet
+            initialView: 'timeGridWeek',
             locale: 'hu',
             firstDay: 1,
             headerToolbar: {
@@ -162,6 +193,7 @@
                 week: 'Hét',
                 day: 'Nap'
             },
+            displayEventTime: false,
             slotDuration: '00:30:00',
             slotLabelFormat: {
                 hour: '2-digit',
@@ -175,13 +207,36 @@
 
             events: '/Services/GetCalendarEvents?service_id=' + @Model.service_id,
 
-            eventClick: function(info) {
-                var status = info.event.extendedProps.status;
-                if (status === 'reserved') {
-                    alert('Lefoglalt időpont: ' + info.event.title);
+            eventClick: function (info) {
+                var isReserved = info.event.extendedProps.status === 'reserved';
+                var iconEl = document.getElementById('slotModalIcon');
+                var badgeEl = document.getElementById('slotModalBadge');
+                var titleEl = document.getElementById('slotModalTitle');
+                var dateEl = document.getElementById('slotModalDate');
+
+                titleEl.innerText = info.event.title;
+
+                var dateStr = info.event.start ? info.event.start.toLocaleString('hu-HU', {
+                    month: 'long',
+                    day: 'numeric',
+                    weekday: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '';
+
+                dateEl.innerHTML = '<i class="bi bi-clock me-1 text-primary"></i> ' + dateStr;
+
+                if (isReserved) {
+                    iconEl.innerHTML = '<i class="bi bi-calendar-check-fill text-danger" style="font-size: 3rem;"></i>';
+                    badgeEl.className = 'badge bg-danger rounded-pill px-3 py-2 my-2';
+                    badgeEl.innerText = 'Lefoglalt időpont';
                 } else {
-                    alert('Szabad időpont: ' + info.event.title);
+                    iconEl.innerHTML = '<i class="bi bi-calendar-check-fill text-success" style="font-size: 3rem;"></i>';
+                    badgeEl.className = 'badge bg-success rounded-pill px-3 py-2 my-2';
+                    badgeEl.innerText = 'Szabad idősáv';
                 }
+
+                slotModal.show();
             }
         });
 
@@ -197,18 +252,21 @@
         --fc-button-hover-bg-color: #0b5ed7;
         --fc-button-active-bg-color: #0a58ca;
     }
-    .fc .fc-toolbar-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #212529;
-    }
-    .fc .fc-col-header-cell-cushion {
-        color: #495057;
-        text-decoration: none;
-        font-weight: 600;
-        padding: 8px 0;
-    }
-    .fc .fc-timegrid-slot-label-cushion {
-        color: #6c757d;
-    }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #212529;
+        }
+
+        .fc .fc-col-header-cell-cushion {
+            color: #495057;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 0;
+        }
+
+        .fc .fc-timegrid-slot-label-cushion {
+            color: #6c757d;
+        }
 </style>

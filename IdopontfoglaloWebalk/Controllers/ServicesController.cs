@@ -25,6 +25,62 @@ namespace IdopontfoglaloWebalk.Controllers
             _emailSender = emailSender;
         }
 
+        private string EscapeIcsText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return string.Empty;
+
+            return text
+                .Replace(@"\", @"\\")
+                .Replace(";", @"\;")
+                .Replace(",", @"\,")
+                .Replace("\r\n", "\\n")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\n");
+        }
+
+        private System.Net.Mail.Attachment CreateIcsAttachment(string serviceName, string serviceAddress, string categoryName, DateTime startTime, int durationMinutes)
+        {
+            var endTime = startTime.AddMinutes(durationMinutes);
+            var nowStr = DateTime.UtcNow.ToString("yyyyMMddTHHmmssZ");
+            var startUtcStr = startTime.ToUniversalTime().ToString("yyyyMMddTHHmmssZ");
+            var endUtcStr = endTime.ToUniversalTime().ToString("yyyyMMddTHHmmssZ");
+            var uid = $"{Guid.NewGuid()}@slothub.local";
+
+            var escapedLocation = EscapeIcsText(serviceAddress);
+            var escapedSummary = EscapeIcsText($"{serviceName} - {categoryName}");
+            var escapedDescription = EscapeIcsText($"Időpontfoglalás a(z) {serviceName} szolgáltatóhoz ({categoryName}).\nHelyszín: {serviceAddress}");
+
+            var icsContent = new System.Text.StringBuilder();
+            icsContent.AppendLine("BEGIN:VCALENDAR");
+            icsContent.AppendLine("VERSION:2.0");
+            icsContent.AppendLine("PRODID:-//Slothub//Idopontfoglalo//HU");
+            icsContent.AppendLine("CALSCALE:GREGORIAN");
+            icsContent.AppendLine("METHOD:REQUEST");
+            icsContent.AppendLine("BEGIN:VEVENT");
+            icsContent.AppendLine($"UID:{uid}");
+            icsContent.AppendLine($"DTSTAMP:{nowStr}");
+            icsContent.AppendLine($"DTSTART:{startUtcStr}");
+            icsContent.AppendLine($"DTEND:{endUtcStr}");
+            icsContent.AppendLine($"SUMMARY:{escapedSummary}");
+            icsContent.AppendLine($"DESCRIPTION:{escapedDescription}");
+            icsContent.AppendLine($"LOCATION:{escapedLocation}");
+            icsContent.AppendLine("STATUS:CONFIRMED");
+            icsContent.AppendLine("END:VEVENT");
+            icsContent.AppendLine("END:VCALENDAR");
+
+            var bytes = System.Text.Encoding.UTF8.GetBytes(icsContent.ToString());
+            var stream = new System.IO.MemoryStream(bytes);
+
+            var contentType = new System.Net.Mime.ContentType("text/calendar; charset=utf-8");
+            contentType.Parameters.Add("method", "REQUEST");
+            contentType.Parameters.Add("name", "foglalas.ics");
+
+            var attachment = new System.Net.Mail.Attachment(stream, contentType);
+            attachment.ContentDisposition.FileName = "foglalas.ics";
+
+            return attachment;
+        }
+
         // GET: Services/MyServices
         public async Task<IActionResult> MyServices()
         {
@@ -326,6 +382,8 @@ namespace IdopontfoglaloWebalk.Controllers
             return RedirectToAction(nameof(Calendar), new { id = serviceId });
         }
 
+
+
         [HttpPost]
         [Authorize]
         [ValidateAntiForgeryToken]
@@ -346,6 +404,14 @@ namespace IdopontfoglaloWebalk.Controllers
                 .Include(o => o.ServiceCategory)
                     .ThenInclude(sc => sc.Service)
                 .FirstOrDefaultAsync(o => o.reservation_id == occasionId);
+
+
+            var ownerId = occasion.ServiceCategory?.Service?.owner_id;
+
+            if (ownerId == currentUser.Id)
+            {
+                return Json(new { success = false, message = "Saját szolgáltatásodhoz nem foglalhatsz időpontot!" });
+            }
 
             if (occasion == null)
             {
@@ -386,10 +452,12 @@ namespace IdopontfoglaloWebalk.Controllers
                             </div>
 
                             <p>Ha bármi közbejönne, a foglalást a profilodban a <em>Foglalásaim</em> menüpont alatt bármikor lemondhatod.</p>
-                            <p>Üdvözlettel,<br />Az Időpontfoglaló Csapata</p>
+                            <p>Üdvözlettel,<br />Az Slothub Csapata</p>
                         </div>";
 
-                    await _emailSender.SendEmailAsync(currentUser.Email, subject, body);
+                    using var icsAttachment = CreateIcsAttachment(serviceName, serviceAddress, categoryName, occasion.date, 30);
+
+                    await _emailSender.SendEmailWithAttachmentAsync(currentUser.Email, subject, body, icsAttachment);
                 }
                 catch (Exception ex)
                 {

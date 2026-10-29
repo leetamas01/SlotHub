@@ -109,12 +109,14 @@
             initialView: 'timeGridWeek',
             locale: 'hu',
             firstDay: 1,
+            contentHeight: 750,
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'timeGridWeek,timeGridDay'
             },
             buttonText: { today: 'Ma', week: 'Hét', day: 'Nap' },
+            displayEventTime: false,
             slotDuration: '00:30:00',
             slotLabelFormat: {
                 hour: '2-digit',
@@ -227,4 +229,12 @@
             text-decoration: none;
             font-weight: 600;
         }
+
+        .fc .fc-timegrid-body {
+            min-width: 700px;
+        }
+
+    #calendar {
+        overflow-x: auto;
+    }
 </style>

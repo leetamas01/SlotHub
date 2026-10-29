@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Találatok: " + ViewBag.Query;
+    var feedbacksByService = ViewBag.FeedbacksByService as Dictionary<int, List<IdopontfoglaloWebalk.Models.Feedbacks>>
+                             ?? new Dictionary<int, List<IdopontfoglaloWebalk.Models.Feedbacks>>();
 }
 
 <div class="container py-5">
@@ -27,6 +29,11 @@
         <div class="row g-4">
             @foreach (var item in Model)
             {
+                var reviews = feedbacksByService.ContainsKey(item.service_id)
+                              ? feedbacksByService[item.service_id]
+                              : new List<IdopontfoglaloWebalk.Models.Feedbacks>();
+                int reviewCount = reviews.Count;
+
                 <div class="col-md-6 col-lg-4">
                     <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
                         <div class="card-body p-4 d-flex flex-column">
@@ -41,11 +48,53 @@
                                 <i class="bi bi-geo-alt-fill text-danger"></i> @item.address
                             </p>
 
-                            <p class="card-text text-secondary flex-grow-1">
+                            <p class="card-text text-secondary mb-3">
                                 @(item.description?.Length > 120 ? item.description.Substring(0, 115) + "..." : item.description)
                             </p>
 
-                            <div class="mt-3">
+                            <div class="border-top pt-2 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted fw-bold">
+                                        <i class="bi bi-chat-left-text me-1"></i> Értékelések (@reviewCount)
+                                    </small>
+                                    @if (reviewCount > 0)
+                                    {
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0"
+                                                data-bs-toggle="modal" data-bs-target="#reviewsModal_@item.service_id">
+                                            Vélemények megtekintése
+                                        </button>
+                                    }
+                                </div>
+
+                                @if (reviewCount == 0)
+                                {
+                                    <small class="text-muted fst-italic d-block mt-1">Még nem érkezett értékelés.</small>
+                                }
+                                else
+                                {
+                                    var latestReview = reviews.Last();
+                                    <div class="bg-light p-2 rounded-3 mt-2 border">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <strong class="small text-dark">@(latestReview.Guest?.UserName ?? "Vendég")</strong>
+                                            <span class="small text-warning">
+                                                @for (int i = 0; i < (int)latestReview.rating_guest; i++)
+                                                {
+                                                    <span>★</span>
+                                                }
+                                            </span>
+                                        </div>
+                                        <p class="small text-muted mb-0 fst-italic">
+                                            @(string.IsNullOrWhiteSpace(latestReview.feedbacktext_guest)
+                                                ? "Nem fűzött hozzá szöveges megjegyzést."
+                                                : (latestReview.feedbacktext_guest.Length > 60
+                                                    ? latestReview.feedbacktext_guest.Substring(0, 55) + "..."
+                                                    : latestReview.feedbacktext_guest))
+                                        </p>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="mt-auto">
                                 <a asp-controller="Home" asp-action="BookAppointment" asp-route-id="@item.service_id" class="btn btn-primary w-100 rounded-pill py-2 fw-bold shadow-sm">
                                     <i class="bi bi-calendar-check me-1"></i> Időpont foglalása
                                 </a>
@@ -53,6 +102,51 @@
                         </div>
                     </div>
                 </div>
+
+                @if (reviewCount > 0)
+                {
+                    <div class="modal fade" id="reviewsModal_@item.service_id" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                            <div class="modal-content border-0 shadow rounded-4">
+                                <div class="modal-header border-0 pb-0">
+                                    <h5 class="modal-title fw-bold">@item.name - Értékelések</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+                                </div>
+                                <div class="modal-body py-3">
+                                    <div class="d-flex align-items-center gap-2 mb-3 bg-light p-3 rounded-3">
+                                        <h3 class="fw-bold mb-0 text-dark">@item.rating.ToString("0.0")</h3>
+                                        <div>
+                                            <div class="text-warning small">
+                                                <i class="bi bi-star-fill"></i> Átlagos értékelés
+                                            </div>
+                                            <small class="text-muted">Összesen @reviewCount vendég véleménye alapján</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex flex-column gap-2">
+                                        @foreach (var rev in reviews)
+                                        {
+                                            <div class="border rounded-3 p-3 bg-white">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <strong class="text-dark">@(rev.Guest?.UserName ?? "Vendég")</strong>
+                                                    <span class="badge bg-warning text-dark rounded-pill">
+                                                        <i class="bi bi-star-fill"></i> @rev.rating_guest.ToString("0.0")
+                                                    </span>
+                                                </div>
+                                                <p class="small text-muted mb-0">
+                                                    @(string.IsNullOrWhiteSpace(rev.feedbacktext_guest) ? "Nem fűzött hozzá szöveges megjegyzést." : rev.feedbacktext_guest)
+                                                </p>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-0 pt-0">
+                                    <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Bezárás</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
             }
         </div>
     }

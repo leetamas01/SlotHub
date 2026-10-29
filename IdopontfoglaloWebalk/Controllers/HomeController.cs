@@ -37,6 +37,23 @@ namespace IdopontfoglaloWebalk.Controllers
                             s.Category.category_name.Contains(searchQuery))
                 .ToListAsync();
 
+
+            var serviceIds = results.Select(s => s.service_id).ToList();
+
+            var feedbacks = await (from f in _context.Feedbacks.Include(f => f.Guest)
+                                   join o in _context.Occasions on f.reservation_Id equals o.reservation_id
+                                   join sc in _context.ServiceCategories on o.service_category_id equals sc.Id
+                                   where serviceIds.Contains(sc.service_id) && f.rating_guest > 0
+                                   select new
+                                   {
+                                       ServiceId = sc.service_id,
+                                       Feedback = f
+                                   }).ToListAsync();
+
+            ViewBag.FeedbacksByService = feedbacks
+                .GroupBy(x => x.ServiceId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.Feedback).ToList());
+
             return View(results);
         }
 
