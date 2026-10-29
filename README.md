@@ -1,4 +1,4 @@
-# Időpontfoglaló Webalkalmazás
+# SlotHub: Többszolgáltatós időpontfoglaló rendszer fejlesztése
 
 Ez egy modern, ASP.NET Core MVC alapú időpontfoglaló rendszer, amely lehetővé teszi a felhasználók számára, hogy online regisztráljanak és különböző szolgáltatásokra időpontot foglaljanak.
 
