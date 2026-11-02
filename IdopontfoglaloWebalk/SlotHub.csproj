@@ -8,6 +8,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Cronos" Version="0.13.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.2" />
 		<PackageReference Include="Microsoft.AspNetCore.Identity.UI" Version="9.0.2" />
 		<PackageReference Include="Microsoft.Build" Version="17.10.4" />

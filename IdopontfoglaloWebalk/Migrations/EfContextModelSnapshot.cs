@@ -17,7 +17,7 @@ namespace IdopontfoglaloWebalk.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.10")
+                .HasAnnotation("ProductVersion", "9.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -90,6 +90,9 @@ namespace IdopontfoglaloWebalk.Migrations
                     b.Property<DateTime>("date")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<bool>("reminder_sent")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime?>("reservation_date")
                         .HasColumnType("datetime(6)");
 
@@ -155,6 +158,9 @@ namespace IdopontfoglaloWebalk.Migrations
                     b.Property<string>("description")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<double>("min_guest_rating")
+                        .HasColumnType("double");
 
                     b.Property<string>("name")
                         .IsRequired()

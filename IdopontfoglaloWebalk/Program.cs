@@ -2,6 +2,8 @@ using IdopontfoglaloWebalk.Context;
 using IdopontfoglaloWebalk.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using IdopontfoglaloWebalk.BackgroundTasks;
+using IdopontfoglaloWebalk.BackgroundTasks.Cron;
 
 namespace IdopontfoglaloWebalk
 {
@@ -55,6 +57,12 @@ namespace IdopontfoglaloWebalk
             });
 
             builder.Services.AddScoped<IEmailSenderService, EmailSenderService>();
+
+            builder.Services.AddCronJob<SendRemindersCronJob>(c =>
+            {
+                c.TimeZoneInfo = TimeZoneInfo.Local;
+                c.CronExpression = @"0 8 * * *";
+            });
 
             var app = builder.Build();
 

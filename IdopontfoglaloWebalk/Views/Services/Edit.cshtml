@@ -11,13 +11,15 @@
                 <div class="text-center mb-4">
                     <i class="bi bi-pencil-square text-primary fs-1"></i>
                     <h2 class="fw-bold mt-2">Szolgáltatás adatainak módosítása</h2>
-                    <p class="text-muted">Itt frissítheted a szolgáltatásod adatait.</p>
+                    <p class="text-muted">Itt frissítheted a szolgáltatásod adatait és az értékelési feltételeket.</p>
                 </div>
 
                 <form asp-action="Edit" method="post">
                     @Html.AntiForgeryToken()
 
                     <input type="hidden" asp-for="service_id" />
+                    <input type="hidden" asp-for="owner_id" />
+                    <input type="hidden" asp-for="rating" />
 
                     <div class="mb-3">
                         <label asp-for="category_id" class="form-label fw-semibold">Kategória</label>
@@ -27,25 +29,43 @@
 
                     <div class="mb-3">
                         <label asp-for="name" class="form-label fw-semibold">Szolgáltatás neve</label>
-                        <input asp-for="name" class="form-control rounded-3 py-2" />
+                        <input asp-for="name" class="form-control rounded-3 py-2" required />
                         <span asp-validation-for="name" class="text-danger small"></span>
                     </div>
 
                     <div class="mb-3">
                         <label asp-for="address" class="form-label fw-semibold">Pontos cím</label>
-                        <input asp-for="address" class="form-control rounded-3 py-2" />
+                        <input asp-for="address" class="form-control rounded-3 py-2" required />
                         <span asp-validation-for="address" class="text-danger small"></span>
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label asp-for="description" class="form-label fw-semibold">Rövid bemutatkozás</label>
-                        <textarea asp-for="description" class="form-control rounded-3" rows="5"></textarea>
+                        <textarea asp-for="description" class="form-control rounded-3" rows="4"></textarea>
                         <span asp-validation-for="description" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4 p-3 bg-light rounded-4 border">
+                        <label class="form-label fw-semibold text-dark d-flex align-items-center gap-1 mb-1">
+                            <i class="bi bi-shield-check text-primary"></i> Vendég minősítési szűrő
+                        </label>
+                        <select name="min_guest_rating" id="min_guest_rating" class="form-select rounded-3 py-2">
+                            <!option value="0" @(Model.min_guest_rating == 0.0 ? "selected" : "")>Nincs korlátozás (Bárki azonnal foglalhat)</!option>
+                            <!option value="2.0" @(Model.min_guest_rating == 2.0 ? "selected" : "")>Legalább 2.0 csillag (Alatta csak jóváhagyással)</!option>
+                            <!option value="2.5" @(Model.min_guest_rating == 2.5 ? "selected" : "")>Legalább 2.5 csillag (Alatta csak jóváhagyással)</!option>
+                            <!option value="3.0" @(Model.min_guest_rating == 3.0 ? "selected" : "")>Legalább 3.0 csillag (Alatta csak jóváhagyással)</!option>
+                            <!option value="3.5" @(Model.min_guest_rating == 3.5 ? "selected" : "")>Legalább 3.5 csillag (Alatta csak jóváhagyással)</!option>
+                            <!option value="4.0" @(Model.min_guest_rating == 4.0 ? "selected" : "")>Legalább 4.0 csillag (Szigorú előzetes szűrés)</!option
+                            <!option value="4.5" @(Model.min_guest_rating == 4.5 ? "selected" : "")>Legalább 4.5 csillag (Szigorú előzetes szűrés)</!option>
+                        </select>
+                        <div class="form-text small text-muted mt-2">
+                            Ha egy vendég átlaga a megadott érték alatt van (pl. 2.5), a foglalása nem válik azonnal érvényessé, hanem feltételes státuszt kap, és neked kell jóváhagynod.
+                        </div>
                     </div>
 
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold">Módosítások mentése</button>
-                        <a asp-action="MyServices" class="btn btn-link text-muted text-decoration-none">Mégse</a>
+                        <a asp-action="MyServices" class="btn btn-link text-muted text-decoration-none text-center">Mégse</a>
                     </div>
                 </form>
             </div>

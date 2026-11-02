@@ -14,6 +14,7 @@ namespace IdopontfoglaloWebalk.Models
         [Required(ErrorMessage = "A leírás megadása kötelező!")]
         public string? description { get; set; }
         public double rating { get; set; }
+        public double min_guest_rating { get; set; } = 0.0;
 
         public string? owner_id { get; set; }
         

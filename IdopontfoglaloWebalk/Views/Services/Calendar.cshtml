@@ -7,6 +7,21 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 
 <div class="container py-5">
+    @if (TempData["StatusMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show rounded-4 shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> @TempData["StatusMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show rounded-4 shadow-sm" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
     <div class="mb-3">
         <a asp-action="MyServices" class="text-decoration-none text-muted">
             <i class="bi bi-arrow-left"></i> Vissza a szolgáltatásaimhoz
@@ -46,6 +61,10 @@
                     <span class="badge bg-success me-2 rounded-circle p-2 d-inline-block"> </span>
                     <span class="small text-muted">Szabad időpont</span>
                 </div>
+                <div class="d-flex align-items-center mb-2">
+                    <span class="badge me-2 rounded-circle p-2 d-inline-block" style="background-color: #fd7e14;"> </span>
+                    <span class="small text-muted">Jóváhagyásra váró</span>
+                </div>
                 <div class="d-flex align-items-center">
                     <span class="badge bg-danger me-2 rounded-circle p-2 d-inline-block"> </span>
                     <span class="small text-muted">Lefoglalt alkalom</span>
@@ -61,6 +80,66 @@
     </div>
 </div>
 
+<div class="modal fade" id="pendingSlotModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-dark">
+                    <i class="bi bi-person-exclamation text-warning me-1"></i> Függőben lévő foglalás
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <div class="modal-body py-3">
+                <div class="bg-light p-3 rounded-3 mb-3 border">
+                    <h6 class="fw-bold mb-1" id="pendingSlotTitle"></h6>
+                    <span class="badge bg-white text-dark border rounded-pill px-3 py-1 mb-2">
+                        <i class="bi bi-clock me-1 text-primary"></i> <span id="pendingSlotDate"></span>
+                    </span>
+                    <hr class="my-2" />
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="small text-muted d-block">Vendég neve:</span>
+                            <strong id="pendingGuestName" class="text-dark">Betöltés...</strong>
+                        </div>
+                        <div class="text-end">
+                            <span class="small text-muted d-block">Vendég értékelése:</span>
+                            <span class="badge bg-warning text-dark rounded-pill" id="pendingGuestRating">-</span>
+                        </div>
+                    </div>
+                    <div class="mt-2 small text-muted">
+                        <div><i class="bi bi-envelope me-1"></i> <span id="pendingGuestEmail">-</span></div>
+                        <div><i class="bi bi-telephone me-1"></i> <span id="pendingGuestPhone">-</span></div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold mb-2 small text-muted">Korábbi szolgáltatói visszajelzések:</h6>
+                <div id="guestHistoryContainer" class="d-flex flex-column gap-2">
+                    <div class="text-center py-3 text-muted small">
+                        <span class="spinner-border spinner-border-sm me-1"></span> Vélemények betöltése...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 d-flex justify-content-between">
+                <form asp-controller="Services" asp-action="RejectBooking" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="occasionId" id="rejectOccasionId" value="" />
+                    <button type="submit" class="btn btn-outline-danger rounded-pill px-3">
+                        <i class="bi bi-x-circle me-1"></i> Elutasítás
+                    </button>
+                </form>
+
+                <form asp-controller="Services" asp-action="ApproveBooking" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="occasionId" id="approveOccasionId" value="" />
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">
+                        <i class="bi bi-check-circle me-1"></i> Jóváhagyás
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="slotDetailsModal" tabindex="-1" aria-labelledby="slotDetailsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow rounded-4 text-center p-3">
@@ -69,10 +148,56 @@
                 <h5 class="fw-bold mb-1" id="slotModalTitle"></h5>
                 <span class="badge rounded-pill px-3 py-2 my-2" id="slotModalBadge"></span>
                 <p class="text-muted small mb-0 mt-2" id="slotModalDate"></p>
+
+                <div id="rateGuestButtonContainer" class="mt-4 d-none">
+                    <button type="button" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm" id="btnOpenGuestFeedback">
+                        <i class="bi bi-star-fill me-1"></i> Vendég értékelése
+                    </button>
+                </div>
             </div>
             <div class="modal-footer border-0 justify-content-center pt-0">
                 <button type="button" class="btn btn-primary rounded-pill px-4" data-bs-dismiss="modal">Rendben</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="guestFeedbackModal" tabindex="-1" aria-labelledby="guestFeedbackModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="guestFeedbackModalLabel">Vendég értékelése</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Bezárás"></button>
+            </div>
+            <form asp-controller="Services" asp-action="SubmitGuestFeedback" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="reservationId" id="feedbackReservationId" value="" />
+
+                <div class="modal-body py-3">
+                    <p class="small text-muted mb-3">Értékeld a vendég megbízhatóságát, pontosságát és együttműködését a többi szolgáltató számára.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Értékelés (1-5 csillag)</label>
+                        <select name="rating" class="form-select rounded-3 py-2" required>
+                            <option value="5" selected>5 - Kiváló vendég</option>
+                            <option value="4">4 - Megbízható</option>
+                            <option value="3">3 - Átlagos</option>
+                            <option value="2">2 - Problémás / sokat késett</option>
+                            <option value="1">1 - Megbízhatatlan / nem jelent meg</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">Szöveges vélemény</label>
+                        <textarea name="comment" rows="3" class="form-control rounded-3" placeholder="pl. Pontosan érkezett, kedves és kommunikatív volt."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Mégsem</button>
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">Értékelés mentése</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -166,6 +291,19 @@
     document.addEventListener('DOMContentLoaded', function () {
         var calendarEl = document.getElementById('calendar');
         var slotModal = new bootstrap.Modal(document.getElementById('slotDetailsModal'));
+        var pendingModal = new bootstrap.Modal(document.getElementById('pendingSlotModal'));
+        var feedbackModal = new bootstrap.Modal(document.getElementById('guestFeedbackModal'));
+
+        var currentSelectedOccasionId = null;
+
+        var btnOpenFeedback = document.getElementById('btnOpenGuestFeedback');
+        if (btnOpenFeedback) {
+            btnOpenFeedback.addEventListener('click', function () {
+                slotModal.hide();
+                document.getElementById('feedbackReservationId').value = currentSelectedOccasionId;
+                feedbackModal.show();
+            });
+        }
 
         var generateForm = document.getElementById('generateSlotsForm');
         if (generateForm) {
@@ -208,13 +346,9 @@
             events: '/Services/GetCalendarEvents?service_id=' + @Model.service_id,
 
             eventClick: function (info) {
-                var isReserved = info.event.extendedProps.status === 'reserved';
-                var iconEl = document.getElementById('slotModalIcon');
-                var badgeEl = document.getElementById('slotModalBadge');
-                var titleEl = document.getElementById('slotModalTitle');
-                var dateEl = document.getElementById('slotModalDate');
-
-                titleEl.innerText = info.event.title;
+                var status = info.event.extendedProps.status;
+                var userId = info.event.extendedProps.userId;
+                currentSelectedOccasionId = info.event.id;
 
                 var dateStr = info.event.start ? info.event.start.toLocaleString('hu-HU', {
                     month: 'long',
@@ -224,16 +358,67 @@
                     minute: '2-digit'
                 }) : '';
 
+                if (status === 'pending') {
+                    document.getElementById('pendingSlotTitle').innerText = info.event.title;
+                    document.getElementById('pendingSlotDate').innerText = dateStr;
+                    document.getElementById('approveOccasionId').value = info.event.id;
+                    document.getElementById('rejectOccasionId').value = info.event.id;
+
+                    var historyContainer = document.getElementById('guestHistoryContainer');
+                    historyContainer.innerHTML = '<div class="text-center py-3 text-muted small"><span class="spinner-border spinner-border-sm me-1"></span> Vélemények betöltése...</div>';
+
+                    if (userId) {
+                        fetch('/Services/GetGuestHistory?guestId=' + userId)
+                            .then(res => res.json())
+                            .then(data => {
+                                document.getElementById('pendingGuestName').innerText = data.guestName;
+                                document.getElementById('pendingGuestRating').innerHTML = '<i class="bi bi-star-fill"></i> ' + Number(data.averageRating).toFixed(1) + ' (' + data.totalReviews + ' vélemény)';
+                                document.getElementById('pendingGuestEmail').innerText = data.guestEmail;
+                                document.getElementById('pendingGuestPhone').innerText = data.guestPhone;
+
+                                if (data.reviews && data.reviews.length > 0) {
+                                    historyContainer.innerHTML = data.reviews.map(r => `
+                                        <div class="border rounded-3 p-2 bg-white">
+                                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                                <strong class="small text-dark">${r.ownerName}</strong>
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-star-fill"></i> ${Number(r.rating).toFixed(1)}</span>
+                                            </div>
+                                            <p class="small text-muted mb-0 fst-italic">"${r.comment}"</p>
+                                        </div>
+                                    `).join('');
+                                } else {
+                                    historyContainer.innerHTML = '<p class="small text-muted fst-italic mb-0">Erről a vendégről még nincs korábbi szolgáltatói értékelés.</p>';
+                                }
+                            })
+                            .catch(err => {
+                                historyContainer.innerHTML = '<p class="small text-danger mb-0">Nem sikerült betölteni a vendég előzményeit.</p>';
+                            });
+                    }
+
+                    pendingModal.show();
+                    return;
+                }
+
+                var isReserved = status === 'reserved';
+                var iconEl = document.getElementById('slotModalIcon');
+                var badgeEl = document.getElementById('slotModalBadge');
+                var titleEl = document.getElementById('slotModalTitle');
+                var dateEl = document.getElementById('slotModalDate');
+                var rateBtnContainer = document.getElementById('rateGuestButtonContainer');
+
+                titleEl.innerText = info.event.title;
                 dateEl.innerHTML = '<i class="bi bi-clock me-1 text-primary"></i> ' + dateStr;
 
                 if (isReserved) {
                     iconEl.innerHTML = '<i class="bi bi-calendar-check-fill text-danger" style="font-size: 3rem;"></i>';
                     badgeEl.className = 'badge bg-danger rounded-pill px-3 py-2 my-2';
                     badgeEl.innerText = 'Lefoglalt időpont';
+                    rateBtnContainer.classList.remove('d-none');
                 } else {
                     iconEl.innerHTML = '<i class="bi bi-calendar-check-fill text-success" style="font-size: 3rem;"></i>';
                     badgeEl.className = 'badge bg-success rounded-pill px-3 py-2 my-2';
                     badgeEl.innerText = 'Szabad idősáv';
+                    rateBtnContainer.classList.add('d-none');
                 }
 
                 slotModal.show();
@@ -268,5 +453,9 @@
 
         .fc .fc-timegrid-slot-label-cushion {
             color: #6c757d;
+        }
+
+        .fc .fc-timegrid-slot {
+            height: 48px !important;
         }
 </style>

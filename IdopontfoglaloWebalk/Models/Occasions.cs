@@ -28,5 +28,6 @@ namespace IdopontfoglaloWebalk.Models
         public DateTime? reservation_date { get; set; }
 
         public string? status { get; set; }
+        public bool reminder_sent { get; set; } = false;
     }
 }
