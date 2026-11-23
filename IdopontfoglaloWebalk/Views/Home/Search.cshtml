@@ -42,6 +42,12 @@
                                 <span class="badge bg-warning text-dark rounded-pill">
                                     <i class="bi bi-star-fill"></i> @item.rating.ToString("0.0")
                                 </span>
+                                <span class="small text-warning">
+                                    @for (double i = 0; i < (double)item.rating; i++)
+                                    {
+                                        <span>&#9733</span>
+                                    }
+                                </span>
                             </div>
 
                             <p class="text-muted small mb-2">
@@ -77,7 +83,7 @@
                                         <div class="d-flex justify-content-between align-items-center mb-1">
                                             <strong class="small text-dark">@(latestReview.Guest?.UserName ?? "Vendég")</strong>
                                             <span class="small text-warning">
-                                                @for (int i = 0; i < (int)latestReview.rating_guest; i++)
+                                                @for (double i = 0; i < (double)latestReview.rating_guest; i++)
                                                 {
                                                     <span>&#9733</span>
                                                 }

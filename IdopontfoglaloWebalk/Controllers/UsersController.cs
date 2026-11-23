@@ -61,6 +61,7 @@ namespace IdopontfoglaloWebalk.Controllers
             return View("~/Views/Users/Login.cshtml");
         }
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Registration(Users user, string password)
         {
             user.rating = 0;
